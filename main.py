@@ -2,6 +2,9 @@ import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
 import ast
+from collections import Counter
+from networkx.drawing.layout import bipartite_layout 
+
 
 data = {
     "nome": [
@@ -43,33 +46,38 @@ data = {
 }
 
 df = pd.DataFrame(data)
-
 df['bandas'] = df['bandas'].apply(ast.literal_eval)
+
+todas_bandas = [banda for lista in df['bandas'] for banda in lista]
+contagem = Counter(todas_bandas)
+bandas_populares = {banda for banda, freq in contagem.items() if freq >= 2}
 
 G = nx.Graph()
 
 for _, row in df.iterrows():
     pessoa = row['nome']
-    bandas = row['bandas']
-    
-    
-    G.add_node(pessoa, bipartite=0)
-    
-   
-    for banda in bandas:
-        G.add_node(banda, bipartite=1)
-        G.add_edge(pessoa, banda)
+    bandas = set(row['bandas']).intersection(bandas_populares)
+    if bandas:
+        G.add_node(pessoa, bipartite=0)
+        for banda in bandas:
+            G.add_node(banda, bipartite=1)
+            G.add_edge(pessoa, banda)
 
-from networkx.algorithms import bipartite
+pessoas = {n for n, d in G.nodes(data=True) if d['bipartite'] == 0}
+pos = bipartite_layout(G, pessoas)
 
-pessoas = {n for n, d in G.nodes(data=True) if d['bipartite']==0}
-bandas = set(G) - pessoas
+graus = dict(G.degree())
+tamanhos = [graus[n] * 300 for n in G.nodes()]
 
-pos = dict()
-pos.update((n, (1, i)) for i, n in enumerate(pessoas))
-pos.update((n, (2, i)) for i, n in enumerate(bandas))
-
-plt.figure(figsize=(12, 8))
-nx.draw(G, pos, with_labels=True, node_color=['skyblue' if n in pessoas else 'lightgreen' for n in G.nodes()])
-plt.title("Grafo de Incidência: Pessoas e suas Bandas Favoritas")
+plt.figure(figsize=(14, 10))
+nx.draw(
+    G, pos,
+    with_labels=True,
+    node_color=['skyblue' if n in pessoas else 'lightgreen' for n in G.nodes()],
+    node_size=tamanhos,
+    font_size=8,
+    edge_color='gray'
+)
+plt.title("Grafo de Incidência: Alunos de BCC e suas Bandas Favoritas")
+plt.axis('off')
 plt.show()
