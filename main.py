@@ -52,6 +52,8 @@ todas_bandas = [banda for lista in df['bandas'] for banda in lista]
 contagem = Counter(todas_bandas)
 bandas_populares = {banda for banda, freq in contagem.items() if freq >= 2}
 
+
+
 G = nx.Graph()
 
 for _, row in df.iterrows():
