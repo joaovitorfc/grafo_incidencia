@@ -1,19 +1,27 @@
-# Importação de bibliotecas necessárias
-import pandas as pd                             # Para manipulação de dados em tabelas
-import networkx as nx                           # Para criação e visualização de grafos
-import matplotlib.pyplot as plt                 # Para plotar gráficos
-import ast                                      # Para converter strings em listas reais
-from collections import Counter                 # Para contar frequências de bandas
-from networkx.drawing.layout import bipartite_layout  # Para layout bipartido automático
+import pandas as pd 
+import networkx as nx
+import matplotlib.pyplot as plt
+import ast
 
-# Dados: nomes dos alunos e suas bandas favoritas (listas como strings)
+# Dados
 data = {
     "nome": [
-        "Luis Gustavo Dias Frigeri", "Marcos Vinicius", "Luiz Otávio Vieira Martins Guimarães",
-        "Lucas Pereira", "Vitor", "João Celso da Silva Nogueira dos Santos",
-        "Vinicius Oliveira", "Jonathan", "Portaluppi", "Rafael", "Luiz Felipe",
-        "Karol", "Nicolas Augusto Cardoso", "Luiz Antônio Marcussi Neto",
-        "Kaio Enrique", "Kendy H."
+        "Luis Gustavo Dias Frigeri",
+        "Marcos Vinicius",
+        "Luiz Otávio Vieira Martins Guimarães",
+        "Lucas Pereira",
+        "Vitor",
+        "João Celso da Silva Nogueira dos Santos",
+        "Vinicius Oliveira",
+        "Jonathan",
+        "Portaluppi",
+        "Rafael",
+        "Luiz Felipe",
+        "Karol",
+        "Nicolas Augusto Cardoso",
+        "Luiz Antônio Marcussi Neto",
+        "Kaio Enrique",
+        "Kendy H."
     ],
     "bandas": [
         "['phonk', 'rock', 'heavy metal']",
@@ -35,56 +43,55 @@ data = {
     ]
 }
 
-# Criação do DataFrame com os dados
+# DataFrame e processamento
 df = pd.DataFrame(data)
-
-# Conversão das strings de listas para listas reais de bandas
 df['bandas'] = df['bandas'].apply(ast.literal_eval)
 
-# Junta todas as bandas em uma única lista
-todas_bandas = [banda for lista in df['bandas'] for banda in lista]
+# Grafo direcionado
+G = nx.DiGraph()
 
-# Conta quantas vezes cada banda aparece
-contagem = Counter(todas_bandas)
-
-# Seleciona apenas as bandas que aparecem em 2 ou mais listas (populares)
-bandas_populares = {banda for banda, freq in contagem.items() if freq >= 2}
-
-# Criação do grafo bipartido (não direcionado)
-G = nx.Graph()
-
-# Adiciona nós e arestas ao grafo apenas para bandas populares
 for _, row in df.iterrows():
     pessoa = row['nome']
-    bandas = set(row['bandas']).intersection(bandas_populares)  # Filtra apenas bandas populares
-    if bandas:
-        G.add_node(pessoa, bipartite=0)  # Nó do aluno
-        for banda in bandas:
-            G.add_node(banda, bipartite=1)  # Nó da banda
-            G.add_edge(pessoa, banda)       # Aresta entre aluno e banda
+    bandas = row['bandas']  # usa todas as bandas
+    G.add_node(pessoa, bipartite=0)
+    for banda in bandas:
+        G.add_node(banda, bipartite=1)
+        G.add_edge(pessoa, banda)  # Direção: pessoa → banda
 
-# Identifica o conjunto de nós correspondentes a pessoas (bipartite=0)
-pessoas = {n for n, d in G.nodes(data=True) if d['bipartite'] == 0}
+# Layout manual bipartido com espaçamento
+pessoas = [n for n, d in G.nodes(data=True) if d["bipartite"] == 0]
+bandas = [n for n, d in G.nodes(data=True) if d["bipartite"] == 1]
 
-# Gera posições automáticas para um layout bipartido
-pos = bipartite_layout(G, pessoas)
+espaco = 1.5  # Espaço vertical entre os nós
 
-# Calcula os graus dos nós para definir seus tamanhos no gráfico
+pos = {}
+
+# Posiciona pessoas na coluna da esquerda
+for i, n in enumerate(sorted(pessoas)):
+    pos[n] = (0, -i * espaco)
+
+# Posiciona bandas na coluna da direita
+for i, n in enumerate(sorted(bandas)):
+    pos[n] = (4, -i * espaco)
+
+# Tamanhos dos nós conforme grau
 graus = dict(G.degree())
-tamanhos = [graus[n] * 300 for n in G.nodes()]  # Tamanho proporcional ao grau
+tamanhos = [graus[n] * 300 for n in G.nodes()]
 
-# Configuração da visualização do grafo
-plt.figure(figsize=(14, 10))
+# Plot
+plt.figure(figsize=(20, 14))
 nx.draw(
     G, pos,
-    with_labels=True,  # Exibe os nomes dos nós
-    node_color=['skyblue' if n in pessoas else 'lightgreen' for n in G.nodes()],  # Cor por tipo de nó
-    node_size=tamanhos,  # Tamanho proporcional ao número de conexões
+    with_labels=True,
+    node_color=['skyblue' if n in pessoas else 'lightgreen' for n in G.nodes()],
+    node_size=tamanhos,
     font_size=8,
-    edge_color='gray'
+    edge_color='gray',
+    arrows=True,
+    arrowsize=20,
+    connectionstyle='arc3,rad=0.05'
 )
-
-# Título e exibição final
-plt.title("Grafo de Incidência: Alunos de BCC e suas Bandas Favoritas")
-plt.axis('off')  # Oculta os eixos
+plt.title("Grafo Direcionado: Alunos de BCC → Todas as Bandas Favoritas (com Separação)")
+plt.axis('off')
+plt.tight_layout()
 plt.show()
